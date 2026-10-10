@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MorseMate — Morse Code Translator with Audio Playback</title>
+<meta name="description" content="MorseMate is a free Morse code translator: convert text to Morse and Morse to text, play beeps at adjustable WPM, use screen-flash signal mode and copy instantly.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Archivo:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Archivo',sans-serif;background:#071426;color:#E2E8F0}
+.mono{font-family:'Share Tech Mono',monospace}
+.panel{background:linear-gradient(180deg,#0E2447,#0B1D3A);border:1px solid #1E3A5F;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 20px 40px rgba(0,0,0,.35)}
+.screw{width:10px;height:10px;border-radius:9999px;background:radial-gradient(circle at 35% 35%,#94A3B8,#334155);position:absolute}
+.lamp{transition:all .05s}
+.lamp.on{background:#FFD60A!important;box-shadow:0 0 28px #FFD60A,0 0 60px rgba(255,214,10,.5)}
+textarea:focus{outline:2px solid #FFD60A;outline-offset:1px}
+input[type=range]{accent-color:#FFD60A}
+#flashOverlay{transition:background .05s}
+</style>
+<script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Morse code and how does MorseMate translate it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Morse code represents each letter, digit and common punctuation mark as a unique pattern of short signals called dots and long signals called dashes. MorseMate contains the complete International Morse Code table, so when you type plain text it looks up every character and joins the patterns with a space between letters and a slash between words. When you paste Morse code, it reverses the process, splitting on spaces and slashes and mapping every pattern back to its character."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the speed control in words per minute work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Speed in Morse code is measured in words per minute, based on the standard word PARIS, which occupies exactly fifty dot units. At twenty words per minute one dot lasts sixty milliseconds, a dash lasts three dots, the gap between letters is three dots and the gap between words is seven dots. Drag the WPM slider in MorseMate and the beep playback, the timing readout and the estimated transmission time all update instantly using that standard formula."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I practise receiving Morse code by ear with this tool?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Type or paste any message, press Play Signal, and MorseMate plays it as clean audio beeps through your device speakers using the Web Audio API. Start slowly at five to ten words per minute, try to write down what you hear without looking, then check yourself against the text panel. Gradually raise the speed over several sessions. The screen-flash mode also lets you practise copying signals visually, the way sailors once read signalling lamps."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What do the slash and the spaces mean in Morse code text?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Spaces and slashes are conventions for writing Morse code on paper or on a screen. A single space separates the code for one letter from the next letter in the same word, while a slash surrounded by spaces separates one word from the next. Without those separators Morse would be ambiguous, because many short patterns are also parts of longer ones. MorseMate follows this convention exactly, so code you copy from here can be pasted into other translators and read correctly."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does MorseMate send my messages anywhere or store them?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. MorseMate runs entirely in your browser. Translation happens in JavaScript on your own device, the audio beeps are generated locally, and nothing you type is uploaded, logged or stored on a server. You can close the page and your text disappears with it. That makes the tool safe for call signs, practice sentences, puzzle answers or anything else you would rather keep private."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does my Morse code show a warning or decode with missing letters?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A warning appears when a pattern does not match any character in the International Morse Code table, or when the input contains characters other than dots, dashes, spaces and slashes. Common causes are missing spaces between letters, using a hyphen style your keyboard substituted, or pasting prosigns that combine letters. Check the highlighted guidance under the Morse panel, add the missing spaces, and the translation will complete. Unsupported plain-text characters are listed for you as well."
+      }
+    }
+  ]
+}</script>
+</head>
+<body id="top">
+<header class="sticky top-0 z-40 bg-[#071426]/95 backdrop-blur border-b border-[#FFD60A]/30">
+ <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+  <a href="#top" class="flex items-center gap-2 font-black text-xl tracking-tight text-white"><span class="bg-[#FFD60A] text-[#071426] rounded px-2 py-1 mono text-sm">·−·</span> Morse<span class="text-[#FFD60A]">Mate</span></a>
+  <nav class="flex gap-5 text-sm font-bold"><a href="#top" class="hover:text-[#FFD60A]">Home</a><a href="https://fixoraa.tech" class="hover:text-[#FFD60A]">More Tools</a></nav>
+ </div>
+</header>
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pt-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <div class="origin-top scale-[0.44] sm:scale-100 shrink-0">
+        <script>
+          atOptions = { 'key' : '4e68ac77881c17fe128a46565d9a4e8c', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+        </script>
+        <script src="https://www.highrevenueformat.com/4e68ac77881c17fe128a46565d9a4e8c/invoke.js"></script>
+      </div>
+    </div>
+  </div>
+</div>
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+ <div class="text-center mb-6">
+  <p class="mono text-[#FFD60A] tracking-[.3em] text-xs">·−· RADIO CONSOLE · EST. SIGNAL</p>
+  <h1 class="text-4xl sm:text-5xl font-black text-white mt-2">Morse Code Translator</h1>
+  <p class="text-slate-300 mt-3 max-w-2xl mx-auto">Text to Morse, Morse to text — then hear it. Play real audio beeps at your speed, or switch to screen-flash signal mode like a naval lamp operator.</p>
+  <span class="inline-block mt-4 bg-[#FFD60A] text-[#071426] font-black text-xs px-3 py-1.5 rounded-full uppercase tracking-wider">Unlimited Free Usage</span>
+ </div>
+
+ <!-- RADIO CONSOLE -->
+ <section class="panel relative rounded-2xl p-4 sm:p-6">
+  <span class="screw" style="top:10px;left:10px"></span><span class="screw" style="top:10px;right:10px"></span><span class="screw" style="bottom:10px;left:10px"></span><span class="screw" style="bottom:10px;right:10px"></span>
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 mb-5">
+    <div class="flex items-center gap-3">
+      <div id="signalLamp" class="lamp w-8 h-8 rounded-full bg-[#1E293B] border-2 border-[#FFD60A]/60"></div>
+      <div><div class="mono text-xs text-[#FFD60A] tracking-widest">SIGNAL LAMP</div><div id="statusText" class="text-sm font-bold text-white">Ready — standby</div></div>
+    </div>
+    <div class="mono text-xs bg-black/40 rounded-lg px-3 py-2 text-[#FFD60A]" id="readout">WPM 20 · DOT 60ms · LEN 0ms</div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-5">
+    <div>
+      <div class="flex justify-between items-center mb-2"><label for="textInput" class="font-bold text-white text-sm tracking-wide">PLAIN TEXT</label><button id="copyTextBtn" class="bg-white/10 hover:bg-[#FFD60A] hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg">Copy Text</button></div>
+      <textarea id="textInput" rows="6" placeholder="Type your message… e.g. HELLO WORLD" class="w-full rounded-xl bg-black/40 border border-white/15 p-4 text-white placeholder:text-slate-500"></textarea>
+      <p id="unsupportedMsg" class="text-amber-300 text-xs mt-2 min-h-[1rem]"></p>
+    </div>
+    <div>
+      <div class="flex justify-between items-center mb-2"><label for="morseInput" class="font-bold text-white text-sm tracking-wide">MORSE CODE</label><button id="copyMorseBtn" class="bg-white/10 hover:bg-[#FFD60A] hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg">Copy Morse</button></div>
+      <textarea id="morseInput" rows="6" placeholder="... --- ...  (letters: space · words: / )" class="mono w-full rounded-xl bg-black/40 border border-white/15 p-4 text-[#FFD60A] placeholder:text-slate-500"></textarea>
+      <p id="morseMsg" class="text-amber-300 text-xs mt-2 min-h-[1rem]"></p>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-2 mt-4">
+    <button data-example="SOS" class="exBtn bg-white/10 hover:bg-white/20 text-xs font-bold px-3 py-2 rounded-lg">▶ SOS</button>
+    <button data-example="HELLO WORLD" class="exBtn bg-white/10 hover:bg-white/20 text-xs font-bold px-3 py-2 rounded-lg">Hello World</button>
+    <button data-example="WHAT HATH GOD WROUGHT" class="exBtn bg-white/10 hover:bg-white/20 text-xs font-bold px-3 py-2 rounded-lg">First Telegraph Message</button>
+    <button id="clearBtn" class="bg-red-500/20 hover:bg-red-500/40 text-red-200 text-xs font-bold px-3 py-2 rounded-lg ml-auto">Clear All</button>
+  </div>
+  <p id="copyMsg" class="text-emerald-300 text-sm mt-3 min-h-[1.25rem] font-bold"></p>
+
+  <!-- CONTROLS -->
+  <div class="grid sm:grid-cols-3 gap-4 mt-5 bg-black/30 rounded-xl p-4">
+    <div><label class="text-xs font-bold tracking-wider text-slate-300">SPEED — <span id="wpmVal">20</span> WPM</label><input id="wpmRange" type="range" min="5" max="40" value="20" class="w-full mt-2"></div>
+    <div><label class="text-xs font-bold tracking-wider text-slate-300">TONE — <span id="freqVal">600</span> Hz</label><input id="freqRange" type="range" min="300" max="900" step="50" value="600" class="w-full mt-2"></div>
+    <div><label class="flex items-center gap-3 cursor-pointer mt-1"><input id="flashToggle" type="checkbox" class="w-5 h-5 accent-yellow-400"><span class="text-sm font-bold text-white">Screen-flash signal mode</span></label><p class="text-xs text-slate-400 mt-1">Flashes a full-screen lamp with every dot &amp; dash.</p></div>
+  </div>
+
+  <div class="flex flex-wrap gap-3 mt-5">
+    <button id="playBtn" class="flex-1 min-w-[160px] bg-[#FFD60A] text-[#071426] font-black py-3.5 rounded-xl hover:bg-yellow-300 text-lg">▶ PLAY SIGNAL</button>
+    <button id="stopBtn" class="bg-white/10 hover:bg-red-500/50 font-black py-3.5 px-6 rounded-xl">■ STOP</button>
+  </div>
+  <div id="statsBar" class="mono text-xs text-slate-300 mt-4">Dots 0 · Dashes 0 · Letters 0 · Words 0</div>
+ </section>
+
+ <!-- FLASH OVERLAY -->
+ <div id="flashOverlay" class="hidden mt-5 rounded-2xl h-40 sm:h-52 bg-[#111827] border-2 border-[#FFD60A]/40 flex items-center justify-center"><span class="mono text-[#FFD60A] tracking-[.4em] text-sm">SIGNAL LAMP</span></div>
+
+ <!-- CHART -->
+ <section class="mt-10">
+  <h2 class="text-2xl font-black text-white mb-4">Complete Morse Code Reference Chart</h2>
+  <div id="chart" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-2"></div>
+ </section>
+
+ <section class="mt-12 bg-[#0B1D3A] border border-white/10 rounded-2xl p-6 sm:p-8">
+  <h2 class="text-2xl font-black text-white mb-4">How to use MorseMate</h2>
+  <ol class="list-decimal ml-5 space-y-2 text-slate-300 leading-relaxed">
+   <li>Type in the Plain Text panel — Morse appears instantly in the Morse panel. Or paste Morse and read the plain text back.</li>
+   <li>Set your speed with the WPM dial. Beginners: start at 8–12 WPM. The readout shows dot length and total transmission time.</li>
+   <li>Press Play Signal to hear beeps, enable screen-flash mode to see the signal, and use Copy buttons to take the result anywhere.</li>
+  </ol>
+ </section>
+
+ <article id="seo-article" class="mt-12 prose-like space-y-5 text-slate-300 leading-relaxed [&_h2]:text-2xl [&_h2]:font-black [&_h2]:text-white [&_h2]:pt-4">
+  
+<p>Morse code is one of the most resilient communication systems ever invented. Long before telephones carried voices, before radio carried music, and long before the internet carried everything, operators were sending complete messages across continents and oceans using nothing more than patterns of short and long electrical pulses. MorseMate is a modern Morse code translator built in the spirit of those original radio rooms: type plain English and watch it become dots and dashes, paste in Morse and read it back as words, then press play and actually hear your message transmitted as audio beeps at a speed you control. Whether you are a radio amateur studying for a licence, a scout learning a classic skill, a puzzle hunter decoding a clue, a teacher bringing history to life, or simply curious about how SOS really sounds, this one page gives you a complete, private, free signalling station in your browser.</p>
+<h2>From Telegraph Wires to a Browser Console</h2>
+<p>The code is named after Samuel Morse, who developed an electrical telegraph system in the 1830s and 1840s alongside Alfred Vail, whose contributions to the letter assignments were substantial. The earliest version was designed for wired telegraph lines: an operator held down a key to complete a circuit, and at the far end a pen or embossing stylus marked a moving paper tape for as long as the circuit stayed closed. A short mark became a dot; a longer mark became a dash. Operators soon discovered they did not need the tape at all. The clicking of the receiving instrument had a rhythm of its own, and skilled listeners could copy messages by ear faster than they could read paper. That single discovery — that Morse is fundamentally a sound, not a drawing — still defines how the code is learned and used today, and it is why MorseMate treats audio playback as a first-class feature rather than an afterthought.</p>
+<p>The version used worldwide today is International Morse Code, standardised in the middle of the nineteenth century and refined by international conferences as wireless telegraphy spread. It differs in several letter assignments from the original American Morse used on landline railroads, which is why old American railroad documents sometimes look subtly wrong when decoded with a modern chart. International Morse was designed for radio: its patterns are distinct enough to survive static, fading and interference. Every letter of the English alphabet, every digit, and a useful set of punctuation marks has its own pattern, and the most frequent letters were deliberately given the shortest codes. E, the commonest letter in English, is a single dot. T is a single dash. That economy is an early example of data compression, decades before information theory had a name.</p>
+<h2>How the Translation Works</h2>
+<p>Translating text to Morse is a lookup exercise, but the details matter. MorseMate uppercases your input, looks up each character in the International Morse table, separates letters with a single space, and separates words with a slash surrounded by spaces, written like this: HELLO WORLD becomes .... . .-.. .-.. --- / .-- --- .-. .-.. -.. That slash convention matters because Morse written without word gaps is genuinely ambiguous. A continuous stream of dots and dashes can often be segmented into letters in more than one valid way, which is precisely why real radio operators rely on timing gaps rather than written separators. In transmission, the gap between symbols inside one letter is one dot unit, the gap between letters is three dot units, and the gap between words is seven dot units. When you press play, MorseMate honours exactly those ratios, so what you hear is rhythmically correct Morse, not just a sequence of beeps.</p>
+<p>Decoding runs the same table in reverse. Paste Morse into the lower panel and MorseMate splits it first on slashes into words, then on spaces into letters, then maps each pattern back to its character. If a pattern matches nothing in the table, the tool tells you instead of guessing silently, and it lists any plain-text characters it cannot encode — accents and emoji, for example, have no International Morse equivalent. That honesty is useful when you are copying code from a photograph, a game, or a handwritten note, where a smudged dash or a missing space is the usual culprit.</p>
+<h2>Speed Is Measured in Words Per Minute — and PARIS Sets the Standard</h2>
+<p>Ask a radio operator how fast they send and they will answer in words per minute, but a word is a slippery unit unless everyone agrees on its length. The convention is the word PARIS, chosen because its Morse pattern, including the following word gap, occupies exactly fifty dot units. Send PARIS correctly and the arithmetic falls out neatly: at twenty words per minute, you send the fifty-unit word twenty times in sixty seconds, which makes one dot unit last sixty milliseconds. A dash is three units, or one hundred and eighty milliseconds. The letter gap is three units and the word gap is seven. The WPM slider on MorseMate drives every one of these numbers through that single formula, and the console shows you the dot length and the estimated total transmission time for your message, so a long passage stops being an abstraction: you can see that a two-hundred-character message at twelve words per minute is a commitment of several real minutes on the air.</p>
+<p>Beginners should resist the temptation to start fast. Most experienced instructors recommend learning at a character speed of fifteen to twenty words per minute with wider spacing between letters — a technique known as the Farnsworth method — because the brain learns to recognise each letter as a single sound-shape rather than counting individual dots and dashes. Counting works at five words per minute and collapses at fifteen. MorseMate's slider goes down to five words per minute for absolute beginners copying their first letters, and up to forty for operators testing their head-copy speed. Use the slower settings to learn the shapes, then nudge the speed upward a little each week.</p>
+<h2>The Sound of the Signal: Web Audio Playback and Flash Mode</h2>
+<p>When you press Play Signal, MorseMate uses the Web Audio API built into your browser to generate a clean sine-wave tone — typically around six hundred hertz, the pitch generations of operators have found comfortable through headphones — and switches it on and off according to the timing sequence. No audio file is downloaded and no server is involved; the tone is synthesised on your device in real time. A signal lamp indicator on the console lights in sync with the tone, and the screen-flash mode goes further, flashing a full-screen panel with each element. Flash mode is more than a novelty. Navies communicated by signalling lamp for over a century, blinking Morse across the water between ships maintaining radio silence, and some people simply learn better visually. Flash mode is also the accessible option for practising in a silent room, on a train, or anywhere headphones are not welcome. A stop button halts playback immediately, because a transmitter you cannot switch off is a transmitter nobody trusts.</p>
+<h2>SOS and the Language of Distress</h2>
+<p>No discussion of Morse is complete without SOS, the international distress signal: three dots, three dashes, three dots. It was adopted in the early twentieth century not because it stood for anything — the popular expansions Save Our Souls and Save Our Ship came later — but because the pattern is unmistakable, symmetrical, and easy to send under stress, even by an untrained hand. Sent as a prosign, the nine elements run together with no letter gaps. Morse distress calls saved lives in the wireless era's most famous disasters and continued to do so until maritime Morse watchkeeping formally ended in 1999, when satellite-based systems replaced it. Yet the pattern survives everywhere: in flashlight signalling, in tapping on pipes, in film soundtracks, and in the muscle memory of anyone who has ever learned it. Type SOS into MorseMate, play it once, and you will recognise it for the rest of your life.</p>
+<p>Around the distress signal grew a whole culture of abbreviations and prosigns that made skilled operators astonishingly efficient. CQ means calling any station. DE means from. AR means end of message. SK means end of contact. Numbers and procedure signals compressed routine exchanges so that a complete conversation could happen in a fraction of the time voice would take. Amateur radio operators still use much of this shorthand daily, along with Q-codes such as QTH for location and QRM for interference, many of which have drifted into general hobby slang far beyond radio.</p>
+<h2>Who Still Uses Morse Code Today?</h2>
+<p>More people than you might expect. Amateur radio remains the largest home of Morse, known there as CW, for continuous wave. A Morse signal occupies a tiny slice of bandwidth — a few hundred hertz against several kilohertz for voice — which means it punches through noise and travels astonishing distances on very low power. Operators routinely make intercontinental contacts with five watts and a wire antenna, and a dedicated community contests, chases awards, and holds slow-speed practice nets every week. Although most licensing authorities no longer require a Morse examination, voluntary use has grown rather than vanished, precisely because it is enjoyable: part language, part music, part sport.</p>
+<p>Beyond the hobby, Morse persists in aviation, where navigation beacons still identify themselves in Morse so pilots can confirm they have tuned the right station. It survives in assistive technology, where a single switch operated by a blink, a breath, or a small movement can send dots and dashes that software expands into full text — for some users, the fastest channel they have. It appears in the military as a backup skill, in emergency preparedness communities as a no-infrastructure signalling method, in escape rooms and alternate-reality games as a favourite puzzle, and in classrooms, where a lesson on Morse sneaks in history, mathematics, pattern recognition and the physics of radio all at once. Even the default text-message ringtone on some early mobile phones spelled out SMS in Morse. The code endures because it asks almost nothing of technology: a battery, a wire, a torch, a whistle, or two stones will do.</p>
+<h2>Learning Morse Code the Way That Actually Works</h2>
+<p>If this translator sparks an ambition to learn the code properly, a few principles will save you months. First, learn by sound from the very beginning. Print the chart, use it in MorseMate to check translations, but never sit counting dots and dashes from a visual table as your main practice method; it builds a translation habit you will later have to unlearn. Second, practise in short daily sessions. Ten focused minutes every day beats an exhausted hour once a week, because recognition speed is a form of fluency and fluency grows through frequent exposure. Third, learn the letters in a sensible order, starting with the simplest patterns — E, T, I, M, A, N, O, S — and add a few at a time, mixing old and new so your brain retrieves rather than merely recognises. Fourth, copy real content. Names, places, song titles and short sentences are more engaging than random letter groups, and MorseMate makes it trivial to generate your own practice material: type a sentence, hide the text panel, play the signal, write down what you hear, then compare.</p>
+<p>Expect a plateau around ten to twelve words per minute; almost everyone hits one. The way through is not more effort but varied effort: alternate listening practice with sending practice on a straight key or paddle if you have one, copy call signs during a contest weekend, and use flash mode for a week to force your visual pathway to keep up with your ears. Speed arrives unevenly, in jumps, usually just after you stop straining for it.</p>
+<h2>Reading the Reference Chart</h2>
+<p>The complete chart on this page lists every letter, digit and punctuation pattern MorseMate supports. A few patterns reward a closer look. The digits are beautifully systematic: one through five start with that many dots followed by dashes, six through zero continue the pattern in mirror, so 7 is two dashes and three dots while 2 is two dots and three dashes. Once you see the counting structure, all ten digits can be learned in a single sitting. Punctuation is longer and less regular — the full stop is an alternating dot-dash sequence of six elements — which is why operators historically spelled out punctuation in formal traffic. Prosigns and accented letters exist in extended practice but are outside the core international table this tool implements, and MorseMate will always tell you plainly when a character has no encoding rather than substituting a near miss.</p>
+<h2>Privacy, Simplicity and a Tool That Just Transmits</h2>
+<p>MorseMate does everything on your device. There is no account, no upload, and no server-side processing: translation is a table lookup in JavaScript, and the audio is synthesised locally. That design is a deliberate nod to the medium itself. Morse was the original peer-to-peer network, station to station, with nobody in the middle. A translator for it should feel the same way — open the page, send your message, close the page. Whether you are preparing for a licence exam, decoding a clue in a game, teaching a room full of children why three dots and three dashes changed history, or sending a flashlight message across a dark garden for the pure joy of it, the signal is yours. Key up, listen first, and send clean code.</p>
+
+ </article>
+
+ <section class="mt-12">
+  <h2 class="text-3xl font-black text-white mb-5">Frequently Asked Questions</h2>
+  <div class="space-y-3"><details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">What is Morse code and how does MorseMate translate it?</summary><p class="mt-3 text-slate-600 leading-relaxed">Morse code represents each letter, digit and common punctuation mark as a unique pattern of short signals called dots and long signals called dashes. MorseMate contains the complete International Morse Code table, so when you type plain text it looks up every character and joins the patterns with a space between letters and a slash between words. When you paste Morse code, it reverses the process, splitting on spaces and slashes and mapping every pattern back to its character.</p></details>
+<details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">How does the speed control in words per minute work?</summary><p class="mt-3 text-slate-600 leading-relaxed">Speed in Morse code is measured in words per minute, based on the standard word PARIS, which occupies exactly fifty dot units. At twenty words per minute one dot lasts sixty milliseconds, a dash lasts three dots, the gap between letters is three dots and the gap between words is seven dots. Drag the WPM slider in MorseMate and the beep playback, the timing readout and the estimated transmission time all update instantly using that standard formula.</p></details>
+<details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">Can I practise receiving Morse code by ear with this tool?</summary><p class="mt-3 text-slate-600 leading-relaxed">Yes. Type or paste any message, press Play Signal, and MorseMate plays it as clean audio beeps through your device speakers using the Web Audio API. Start slowly at five to ten words per minute, try to write down what you hear without looking, then check yourself against the text panel. Gradually raise the speed over several sessions. The screen-flash mode also lets you practise copying signals visually, the way sailors once read signalling lamps.</p></details>
+<details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">What do the slash and the spaces mean in Morse code text?</summary><p class="mt-3 text-slate-600 leading-relaxed">Spaces and slashes are conventions for writing Morse code on paper or on a screen. A single space separates the code for one letter from the next letter in the same word, while a slash surrounded by spaces separates one word from the next. Without those separators Morse would be ambiguous, because many short patterns are also parts of longer ones. MorseMate follows this convention exactly, so code you copy from here can be pasted into other translators and read correctly.</p></details>
+<details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">Does MorseMate send my messages anywhere or store them?</summary><p class="mt-3 text-slate-600 leading-relaxed">No. MorseMate runs entirely in your browser. Translation happens in JavaScript on your own device, the audio beeps are generated locally, and nothing you type is uploaded, logged or stored on a server. You can close the page and your text disappears with it. That makes the tool safe for call signs, practice sentences, puzzle answers or anything else you would rather keep private.</p></details>
+<details class="bg-white border border-slate-200 rounded-xl p-5"><summary class="font-bold cursor-pointer text-[#0B1D3A]">Why does my Morse code show a warning or decode with missing letters?</summary><p class="mt-3 text-slate-600 leading-relaxed">A warning appears when a pattern does not match any character in the International Morse Code table, or when the input contains characters other than dots, dashes, spaces and slashes. Common causes are missing spaces between letters, using a hyphen style your keyboard substituted, or pasting prosigns that combine letters. Check the highlighted guidance under the Morse panel, add the missing spaces, and the translation will complete. Unsupported plain-text characters are listed for you as well.</p></details></div>
+ </section>
+</main>
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pb-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <script async src="https://js.wpadmngr.com/static/adManager.js" data-admpid="464498"></script>
+    </div>
+  </div>
+</div>
+<footer class="border-t border-white/10 py-8 text-center text-slate-400 text-sm">MorseMate — send clean code. Built for learners, radio amateurs &amp; puzzle hunters.</footer>
+
+<script id="lib-morsemate">
+var MorseMateLib = (function () {
+  var CHAR_TO_MORSE = {
+    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..',
+    '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--', '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...', ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.', '$': '...-..-', '@': '.--.-.'
+  };
+  var MORSE_TO_CHAR = {};
+  Object.keys(CHAR_TO_MORSE).forEach(function (k) { MORSE_TO_CHAR[CHAR_TO_MORSE[k]] = k; });
+
+  function textToMorse(text) {
+    if (text == null) return '';
+    var str = String(text).toUpperCase().trim();
+    if (!str) return '';
+    return str.split(/\s+/).map(function (word) {
+      return word.split('').map(function (ch) { return CHAR_TO_MORSE[ch] || ''; }).filter(Boolean).join(' ');
+    }).filter(function (w) { return w.length > 0; }).join(' / ');
+  }
+
+  function morseToText(morse) {
+    if (morse == null) return '';
+    var str = String(morse).trim();
+    if (!str) return '';
+    // Normalize: word separator is / or 3+ spaces treated as word gap handled by caller; here / explicit
+    var words = str.split(/\s*\/\s*/);
+    return words.map(function (word) {
+      if (!word.trim()) return '';
+      return word.trim().split(/\s+/).map(function (code) { return MORSE_TO_CHAR[code] || ''; }).join('');
+    }).filter(Boolean).join(' ');
+  }
+
+  function isValidMorse(morse) {
+    if (morse == null) return false;
+    var str = String(morse).trim();
+    if (!str) return false;
+    if (!/^[.\-\/\s]+$/.test(str)) return false;
+    var tokens = str.replace(/\//g, ' ').split(/\s+/).filter(Boolean);
+    if (!tokens.length) return false;
+    return tokens.every(function (t) { return !!MORSE_TO_CHAR[t]; });
+  }
+
+  function unsupportedChars(text) {
+    if (!text) return [];
+    var out = [], seen = {};
+    String(text).toUpperCase().split('').forEach(function (ch) {
+      if (/\s/.test(ch)) return;
+      if (!CHAR_TO_MORSE[ch] && !seen[ch]) { seen[ch] = true; out.push(ch); }
+    });
+    return out;
+  }
+
+  function ditDurationMs(wpm) {
+    var w = Number(wpm);
+    if (!isFinite(w) || w <= 0) w = 20;
+    w = Math.min(60, Math.max(1, w));
+    return 1200 / w;
+  }
+
+  function getTiming(wpm) {
+    var dit = ditDurationMs(wpm);
+    return { dit: dit, dah: dit * 3, intraCharGap: dit, letterGap: dit * 3, wordGap: dit * 7, wpm: Math.min(60, Math.max(1, Number(wpm) || 20)) };
+  }
+
+  // Build a timed on/off sequence from morse string
+  function buildSignalSequence(morse, wpm) {
+    var t = getTiming(wpm);
+    var seq = [];
+    if (!morse || !String(morse).trim()) return seq;
+    var words = String(morse).trim().split(/\s*\/\s*/).filter(function (w) { return w.trim(); });
+    words.forEach(function (word, wi) {
+      var letters = word.trim().split(/\s+/).filter(Boolean);
+      letters.forEach(function (code, li) {
+        code.split('').forEach(function (sym, si) {
+          seq.push({ on: true, duration: sym === '-' ? t.dah : t.dit, symbol: sym });
+          if (si < code.length - 1) seq.push({ on: false, duration: t.intraCharGap, symbol: '' });
+        });
+        if (li < letters.length - 1) seq.push({ on: false, duration: t.letterGap, symbol: '' });
+      });
+      if (wi < words.length - 1) seq.push({ on: false, duration: t.wordGap, symbol: '' });
+    });
+    return seq;
+  }
+
+  function totalDurationMs(morse, wpm) {
+    return buildSignalSequence(morse, wpm).reduce(function (s, e) { return s + e.duration; }, 0);
+  }
+
+  function countSymbols(morse) {
+    if (!morse) return { dots: 0, dashes: 0, letters: 0, words: 0 };
+    var str = String(morse).trim();
+    if (!str) return { dots: 0, dashes: 0, letters: 0, words: 0 };
+    var wordsArr = str.split(/\s*\/\s*/).filter(function (w) { return w.trim(); });
+    var letters = 0;
+    wordsArr.forEach(function (w) { letters += w.trim().split(/\s+/).filter(Boolean).length; });
+    return { dots: (str.match(/\./g) || []).length, dashes: (str.match(/-/g) || []).length, letters: letters, words: wordsArr.length };
+  }
+
+  return { CHAR_TO_MORSE: CHAR_TO_MORSE, MORSE_TO_CHAR: MORSE_TO_CHAR, textToMorse: textToMorse, morseToText: morseToText, isValidMorse: isValidMorse, unsupportedChars: unsupportedChars, ditDurationMs: ditDurationMs, getTiming: getTiming, buildSignalSequence: buildSignalSequence, totalDurationMs: totalDurationMs, countSymbols: countSymbols };
+})();
+if (typeof module !== 'undefined' && module.exports) { module.exports = MorseMateLib; }
+
+</script>
+<script>
+var textEl=document.getElementById('textInput'), morseEl=document.getElementById('morseInput');
+var wpmEl=document.getElementById('wpmRange'), freqEl=document.getElementById('freqRange');
+var lamp=document.getElementById('signalLamp'), overlay=document.getElementById('flashOverlay'), flashToggle=document.getElementById('flashToggle');
+var playing=false, timers=[], audioCtx=null, osc=null, gainNode=null;
+function updateReadout(){
+  var t=MorseMateLib.getTiming(+wpmEl.value);
+  var total=MorseMateLib.totalDurationMs(morseEl.value,+wpmEl.value);
+  document.getElementById('wpmVal').textContent=wpmEl.value;
+  document.getElementById('freqVal').textContent=freqEl.value;
+  document.getElementById('readout').textContent='WPM '+wpmEl.value+' · DOT '+Math.round(t.dit)+'ms · LEN '+Math.round(total)+'ms';
+  var c=MorseMateLib.countSymbols(morseEl.value);
+  document.getElementById('statsBar').textContent='Dots '+c.dots+' · Dashes '+c.dashes+' · Letters '+c.letters+' · Words '+c.words;
+}
+function syncFromText(){
+  morseEl.value=MorseMateLib.textToMorse(textEl.value);
+  var uns=MorseMateLib.unsupportedChars(textEl.value);
+  document.getElementById('unsupportedMsg').textContent=uns.length?('No Morse code exists for: '+uns.join(' ')+' — those characters were skipped.'):'';
+  document.getElementById('morseMsg').textContent=''; updateReadout();
+}
+function syncFromMorse(){
+  textEl.value=MorseMateLib.morseToText(morseEl.value);
+  var bad=morseEl.value.trim() && !MorseMateLib.isValidMorse(morseEl.value);
+  document.getElementById('morseMsg').textContent=bad?'Some patterns do not match the Morse table — check for missing spaces between letters. Unmatched patterns are skipped.':'';
+  document.getElementById('unsupportedMsg').textContent=''; updateReadout();
+}
+textEl.addEventListener('input',syncFromText);
+morseEl.addEventListener('input',syncFromMorse);
+wpmEl.addEventListener('input',updateReadout);
+freqEl.addEventListener('input',updateReadout);
+flashToggle.addEventListener('change',function(){ overlay.classList.toggle('hidden',!flashToggle.checked); });
+document.querySelectorAll('.exBtn').forEach(function(b){ b.addEventListener('click',function(){ textEl.value=b.getAttribute('data-example'); syncFromText(); }); });
+document.getElementById('clearBtn').addEventListener('click',function(){ stopPlayback(); textEl.value=''; morseEl.value=''; syncFromText(); document.getElementById('copyMsg').textContent=''; });
+function copyTo(el,msg){ if(!el.value){ document.getElementById('copyMsg').textContent='Nothing to copy yet — type something first.'; return; } navigator.clipboard.writeText(el.value).then(function(){ document.getElementById('copyMsg').textContent=msg; }); }
+document.getElementById('copyTextBtn').addEventListener('click',function(){ copyTo(textEl,'Plain text copied to clipboard.'); });
+document.getElementById('copyMorseBtn').addEventListener('click',function(){ copyTo(morseEl,'Morse code copied to clipboard.'); });
+// Chart
+var chart=document.getElementById('chart');
+Object.keys(MorseMateLib.CHAR_TO_MORSE).forEach(function(k){ var d=document.createElement('div'); d.className='bg-[#0B1D3A] border border-white/10 rounded-lg p-2 text-center'; d.innerHTML='<div class="font-black text-white">'+k.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div><div class="mono text-[#FFD60A] text-sm">'+MorseMateLib.CHAR_TO_MORSE[k]+'</div>'; chart.appendChild(d); });
+
+function setSignal(on){
+  lamp.classList.toggle('on',on);
+  if(flashToggle.checked){ overlay.style.background=on?'#FFD60A':'#111827'; }
+  if(audioCtx){
+    if(on){ try{ osc=frequencyOsc(); }catch(e){} }
+    else { stopOsc(); }
+  }
+}
+function frequencyOsc(){
+  stopOsc();
+  osc=audioCtx.createOscillator(); gainNode=audioCtx.createGain();
+  osc.type='sine'; osc.frequency.value=+freqEl.value;
+  gainNode.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.25,audioCtx.currentTime+0.008);
+  osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.start(); return osc;
+}
+function stopOsc(){ if(osc){ try{ gainNode.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.008); var o=osc; setTimeout(function(){ try{o.stop();}catch(e){} },20); }catch(e){} osc=null; } }
+function stopPlayback(){
+  timers.forEach(clearTimeout); timers=[]; playing=false;
+  lamp.classList.remove('on'); overlay.style.background='#111827'; stopOsc();
+  document.getElementById('statusText').textContent='Ready — standby';
+}
+document.getElementById('stopBtn').addEventListener('click',stopPlayback);
+document.getElementById('playBtn').addEventListener('click',function(){
+  stopPlayback();
+  var morse=morseEl.value.trim();
+  if(!morse){ document.getElementById('statusText').textContent='Nothing to transmit — type a message first.'; return; }
+  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){ audioCtx=null; }
+  var seq=MorseMateLib.buildSignalSequence(morse,+wpmEl.value);
+  playing=true; document.getElementById('statusText').textContent='Transmitting…';
+  var elapsed=0;
+  seq.forEach(function(ev){
+    timers.push(setTimeout(function(){ if(playing) setSignal(ev.on); },elapsed));
+    elapsed+=ev.duration;
+  });
+  timers.push(setTimeout(function(){ stopPlayback(); document.getElementById('statusText').textContent='Transmission complete ✓'; },elapsed+50));
+});
+updateReadout();
+</script>
+</body>
+</html>
